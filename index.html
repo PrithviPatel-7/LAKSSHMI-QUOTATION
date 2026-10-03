@@ -58,6 +58,9 @@ td input,td select{padding:6px}
  input,select,textarea{border:0;background:none;padding:2px;appearance:none;-webkit-appearance:none;color:#000}
  table{min-width:0}.scroll{overflow:visible}
 }
+#pa{display:none}
+@page{size:A4;margin:10mm}
+@media print{body>*:not(#pa){display:none!important}#pa{display:block}#pa img{display:block;margin:0 auto;width:auto;height:auto;max-width:100%;max-height:272mm;object-fit:contain}}
 </style>
 </head>
 <body>
@@ -72,7 +75,7 @@ td input,td select{padding:6px}
   <div class="qtag">QUOTATION</div>
  </header>
  <div class="two">
-  <div class="card"><h2>Quotation</h2><div class="grid"><div><label>Quotation No.</label><input id="qno"></div><div><label>Date</label><input id="qdate" type="date"></div></div></div>
+  <div class="card"><h2>Quotation</h2><div class="grid"><div><label>Quotation No.</label><input id="qno" readonly title="Quotation number is fixed" style="font-weight:700;cursor:not-allowed"></div><div><label>Date</label><input id="qdate" type="date"></div></div></div>
   <div class="card"><h2>Customer</h2><div class="grid">
    <div><label>Name</label><input id="cname" placeholder="Customer name"></div>
    <div><label>Phone</label><input id="cphone" type="tel" placeholder="Mobile number"></div>
@@ -114,8 +117,9 @@ td input,td select{padding:6px}
  </div>
 
  <div class="actions no-print" style="margin-bottom:24px">
-  <button class="btn" onclick="saveQuote(true);window.print()">🖨 Print / Save as PDF</button>
-  <button class="btn alt" id="save">💾 Save quotation</button>
+  <button class="btn" onclick="printQuote()">🖨 Print / Save as PDF</button>
+  <button class="btn alt" id="save">💾 Save quotation</button><span id="sv" style="align-self:center;font-size:12px;color:var(--mute)"></span>
+  <button class="btn alt" id="dimg">🖼 Download as image</button>
   <button class="btn alt" id="wa">Share on WhatsApp</button>
   <button class="btn alt" id="mail">Email via Gmail</button>
   <button class="btn alt" id="reset">New quotation</button>
@@ -132,7 +136,9 @@ td input,td select{padding:6px}
 const $=id=>document.getElementById(id);
 const CATS={Tiles:['sq.ft','box','nos'],Sanitaryware:['nos','set'],Granite:['sq.ft','running ft'],Cudappa:['sq.ft','running ft','nos'],Doors:['nos','set'],Timber:['cu.ft','running ft','nos'],Hardware:['nos','kg','set'],Other:['nos']};
 const fmt=n=>n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
-let store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const mem={};
+let store={get(k){if(mem[k]!==undefined)return mem[k];try{return localStorage.getItem(k)}catch(e){return null}},
+set(k,v){try{localStorage.setItem(k,v);if(localStorage.getItem(k)===v){delete mem[k];return true}}catch(e){}mem[k]=v;return false}};
 
 function words(n){
  n=Math.round(n);if(!n)return'';
@@ -178,7 +184,9 @@ function calc(){
  $('sub').textContent=fmt(sub);$('gstAmt').textContent=fmt(g);
  $('grand').textContent='₹'+fmt(tot);$('words').textContent=words(tot);
 }
+let asT;
 document.addEventListener('input',e=>{
+ if(!['srch','rest'].includes(e.target.id)){clearTimeout(asT);asT=setTimeout(()=>saveQuote(true),700);}
  if(e.target.classList.contains('cat'))setUnits(e.target.closest('tr'));
   calc();
 });
@@ -190,16 +198,23 @@ $('add').onclick=()=>addRow();
 const KEY='lk_quotes';
 const loadAll=()=>{try{return JSON.parse(store.get(KEY)||'[]')}catch(e){return[]}};
 const saveAll=a=>store.set(KEY,JSON.stringify(a));
+let curNo=null;
 function nextNo(){const n=loadAll().map(q=>parseInt(String(q.no).split('-').pop())).filter(x=>x>0);return (n.length?Math.max(...n):0)+1;}
 function collect(){
  const items=[...document.querySelectorAll('#rows tr')].map(tr=>({cat:tr.querySelector('.cat').value,desc:tr.querySelector('.desc').value,unit:tr.querySelector('.unit').value,qty:tr.querySelector('.qty').value,rate:tr.querySelector('.rate').value,dr:tr.querySelector('.dr').value,amt:tr.querySelector('.amt').textContent}));
  return {no:$('qno').value,date:$('qdate').value,cname:$('cname').value,cphone:$('cphone').value,caddr:$('caddr').value,gstOn:$('gstOn').checked,gst:$('gst').value,trans:$('trans').value,terms:$('terms').value,sub:$('sub').textContent,gstAmt:$('gstAmt').textContent,total:$('grand').textContent,items,saved:Date.now()};
 }
+function setSv(t,bad){const s=$('sv');s.textContent=t;s.style.color=bad?'#d32f2f':'var(--mute)';}
 function saveQuote(silent){
+ if(!$('qno').value.trim())$('qno').value=curNo||'';
  const q=collect();
  if(!q.items.some(i=>i.amt!=='0.00')){if(!silent)alert('Add at least one item with a rate first.');return false;}
- const a=loadAll(),i=a.findIndex(x=>x.no===q.no);if(i>=0)a[i]=q;else a.push(q);
- saveAll(a);renderList();
+ const a=loadAll(),i=a.findIndex(x=>x.no===curNo),d=a.findIndex(x=>x.no===q.no);
+ if(d>=0&&d!==i){setSv('Number '+q.no+' is already used by another quotation',true);if(!silent)alert('Quotation number '+q.no+' is already used. Please change it.');return false;}
+ if(i>=0)a[i]=q;else a.push(q);
+ const ok=saveAll(a);curNo=q.no;renderList();
+ if(!ok){setSv('Could not save in this browser. Use Backup file.',true);if(!silent)alert('This browser is blocking storage, so quotations will be lost when the page closes. Please use the Backup file button.');return false;}
+ setSv('✓ Saved '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
  if(!silent){const b=$('save');b.textContent='Saved ✓';setTimeout(()=>b.textContent='💾 Save quotation',1500);}
  return true;
 }
@@ -207,11 +222,11 @@ function renderList(){
  const a=loadAll().sort((x,y)=>y.saved-x.saved),s=$('srch').value.toLowerCase();
  const f=a.filter(q=>(q.no+' '+q.cname+' '+q.cphone).toLowerCase().includes(s));
  $('cnt').textContent='('+a.length+')';
- $('list').innerHTML=f.length?f.map(q=>`<div class="qi"><div><b>${q.no}</b> · ${(q.cname||'No name').replace(/</g,'&lt;')}<br><small>${q.date.split('-').reverse().join('-')} · ${q.total}</small></div><div><button class="btn alt" data-o="${q.no}">Open</button> <button class="x" data-d="${q.no}" title="Delete">🗑</button></div></div>`).join(''):'<p style="color:var(--mute)">No saved quotations yet.</p>';
+ $('list').innerHTML=f.length?f.map(q=>`<div class="qi"><div><b>${q.no}</b> · ${(q.cname||'No name').replace(/</g,'&lt;')}<br><small>${(q.date||'').split('-').reverse().join('-')} · ${q.total}</small></div><div><button class="btn alt" data-o="${q.no}">Open</button> <button class="x" data-d="${q.no}" title="Delete">🗑</button></div></div>`).join(''):'<p style="color:var(--mute)">No saved quotations yet.</p>';
 }
 function openQuote(no){
  const q=loadAll().find(x=>x.no===no);if(!q)return;
- $('qno').value=q.no;$('qdate').value=q.date;$('cname').value=q.cname;$('cphone').value=q.cphone;$('caddr').value=q.caddr;
+ $('qno').value=q.no;curNo=q.no;$('qdate').value=q.date;$('cname').value=q.cname;$('cphone').value=q.cphone;$('caddr').value=q.caddr;
  $('gstOn').checked=q.gstOn;$('gst').value=q.gst;$('trans').value=q.trans;$('terms').value=q.terms;
  $('rows').innerHTML='';q.items.forEach(i=>addRow(i));if(!q.items.length)addRow();calc();window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -224,6 +239,17 @@ $('list').addEventListener('click',e=>{
 $('srch').addEventListener('input',renderList);
 window.addEventListener('beforeprint',()=>document.querySelectorAll('#rows tr').forEach(tr=>{const r=tr.querySelector('.rate');r.dataset.o=r.value;if(r.value!=='')r.value=Math.max((+r.value||0)-(+tr.querySelector('.dr').value||0),0);}));
 window.addEventListener('afterprint',()=>document.querySelectorAll('#rows .rate').forEach(r=>{if(r.dataset.o!==undefined)r.value=r.dataset.o;}));
+async function printQuote(){
+ saveQuote(true);
+ try{
+  const url=URL.createObjectURL(await makeImage());
+  let pa=$('pa');if(!pa){pa=document.createElement('div');pa.id='pa';document.body.appendChild(pa);}
+  pa.innerHTML='<img src="'+url+'" alt="Quotation">';
+  await pa.querySelector('img').decode();
+  window.print();
+ }catch(e){alert('Could not prepare the quotation for printing. Please try again.');}
+}
+window.addEventListener('pagehide',()=>saveQuote(true));
 $('save').onclick=()=>saveQuote(false);
 $('csv').onclick=()=>{
  const a=loadAll().sort((x,y)=>x.saved-y.saved);if(!a.length){alert('No saved quotations yet.');return;}
@@ -245,7 +271,7 @@ function newQuote(){
  ['cname','cphone','caddr'].forEach(i=>$(i).value='');
  $('qdate').value=new Date().toISOString().slice(0,10);
  let n=nextNo();
- $('qno').value='LTH-'+new Date().getFullYear()+'-'+String(n).padStart(4,'0');
+ $('qno').value='LTH-'+new Date().getFullYear()+'-'+String(n).padStart(4,'0');curNo=$('qno').value;
  addRow();addRow();
 }
 $('reset').onclick=()=>{if(confirm('Start a new quotation? The current one will be saved first.')){saveQuote(true);newQuote();}};
@@ -306,15 +332,26 @@ async function shareImage(kind){
 function showPreview(blob,name,kind){
  const url=URL.createObjectURL(blob),o=document.createElement('div');
  o.className='no-print';o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9;overflow:auto;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px';
- o.innerHTML=`<div style="color:#fff;text-align:center;max-width:520px">Quotation image is ready. Save it (or copy it), then attach it in ${kind==='wa'?'WhatsApp':'Gmail'}.</div>
+ o.innerHTML=`<div style="color:#fff;text-align:center;max-width:520px">${kind==='img'?'Quotation image is ready. Tap Download image, or press and hold the picture to save it.':'Quotation image is ready. Save it (or copy it), then attach it in '+(kind==='wa'?'WhatsApp':'Gmail')+'.'}</div>
  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><a class="btn" download="${name}" href="${url}" style="text-decoration:none">⬇ Download image</a>
- <button class="btn alt" id="cp">Copy image</button><a class="btn alt" target="_blank" style="text-decoration:none" href="${kind==='wa'?'https://web.whatsapp.com/':'https://mail.google.com/mail/?view=cm&fs=1&su='+encodeURIComponent('Quotation '+$('qno').value+' - Laksshmi Tiles & Hardwares')}">Open ${kind==='wa'?'WhatsApp':'Gmail'}</a>
+ <button class="btn alt" id="cp">Copy image</button>${kind==='img'?'':`<a class="btn alt" target="_blank" style="text-decoration:none" href="${kind==='wa'?'https://web.whatsapp.com/':'https://mail.google.com/mail/?view=cm&fs=1&su='+encodeURIComponent('Quotation '+$('qno').value+' - Laksshmi Tiles & Hardwares')}">Open ${kind==='wa'?'WhatsApp':'Gmail'}</a>`}
  <button class="btn alt" id="cl">Close</button></div>
  <img src="${url}" style="max-width:min(100%,820px);background:#fff;border-radius:8px">`;
  document.body.appendChild(o);
  o.querySelector('#cl').onclick=()=>o.remove();
  o.querySelector('#cp').onclick=async e=>{try{await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);e.target.textContent='Copied ✓';}catch(x){e.target.textContent='Copy not supported';}};
 }
+async function downloadImage(){
+ saveQuote(true);
+ const b=$('dimg'),old=b.textContent;b.textContent='Preparing…';b.disabled=true;
+ try{
+  const blob=await makeImage(),name='Quotation-'+$('qno').value+'.png';
+  if(window.self!==window.top)showPreview(blob,name,'img');
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();}
+ }catch(e){alert('Could not create the image. Please try again.');}
+ finally{b.textContent=old;b.disabled=false;}
+}
+$('dimg').onclick=downloadImage;
 $('wa').onclick=()=>shareImage('wa');
 $('mail').onclick=()=>shareImage('mail');
 newQuote();renderList();
