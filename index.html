@@ -126,8 +126,9 @@ td input,td select{padding:6px}
  </div>
 <div class="card no-print" id="savedCard">
   <h2>Saved quotations <span id="cnt" style="color:var(--mute);font-weight:400"></span></h2>
-  <div class="actions" style="margin:0 0 10px"><button class="btn" id="csv">⬇ Download all quotations (Excel/CSV)</button><button class="btn alt" id="bk">Backup file</button><label class="btn alt" style="cursor:pointer">Restore backup<input id="rest" type="file" accept=".json,application/json" hidden></label></div>
+  <div class="actions" style="margin:0 0 10px"><button class="btn" id="csv">⬇ Download all quotations (Excel/CSV)</button><button class="btn alt" id="bk">Backup file</button><label class="btn alt" style="cursor:pointer">Restore backup<input id="rest" type="file" accept=".json,application/json" hidden></label><button class="btn alt" id="cloud">☁ Cloud setup</button><button class="btn alt" id="syncnow">Sync now</button></div>
   <div id="bkinfo" style="font-size:12px;color:var(--mute);margin-bottom:8px"></div>
+  <div id="cloudinfo" style="font-size:12px;color:var(--mute);margin-bottom:8px"></div>
   <input id="srch" placeholder="Search by number, name or phone">
   <div id="list"></div>
  </div>
@@ -217,6 +218,21 @@ async function storageInfo(){
  $('bkinfo').innerHTML=(p?'🔒 Storage protected':'⚠ Stored in this browser only')+' · '+(t?'Last backup '+(d?d+' day(s) ago':'today'):'<b style="color:#d32f2f">No backup yet</b>');
 }
 let curNo=null;
+const cfg=()=>{try{return JSON.parse(store.get('lk_cloud')||'null')}catch(e){return null}};
+function setCl(t,bad){const e=$('cloudinfo');if(e){e.textContent=t;e.style.color=bad?'#d32f2f':'var(--mute)';}}
+async function cloudCall(body){const c=cfg();const r=await fetch(c.url,{method:'POST',body:JSON.stringify({...body,key:c.key})});const j=await r.json();if(j.error)throw new Error(j.error);return j;}
+async function pushQuote(q){if(!cfg())return;try{await cloudCall({action:'save',quote:q});setCl('☁ Saved to Google Sheet at '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));}catch(e){setCl('☁ Could not reach Google Sheet. It will sync next time.',true);}}
+async function syncAll(){
+ const c=cfg();if(!c)return;setCl('☁ Syncing…');
+ try{
+  const r=await fetch(c.url+'?key='+encodeURIComponent(c.key)),j=await r.json();if(j.error)throw new Error(j.error);
+  const srv=j.quotations||[],loc=loadAll(),m=new Map(),sm=new Map(srv.map(q=>[q.no,q]));
+  [...srv,...loc].forEach(q=>{const o=m.get(q.no);if(!o||(q.saved||0)>(o.saved||0))m.set(q.no,q)});
+  const all=[...m.values()];saveAll(all);renderList();
+  for(const q of all){const s=sm.get(q.no);if(!s||(q.saved||0)>(s.saved||0))await cloudCall({action:'save',quote:q});}
+  setCl('☁ Synced '+all.length+' quotation(s) with Google Sheet');
+ }catch(e){setCl('☁ Sync failed: '+(e.message==='denied'?'wrong password':'check the URL and internet'),true);}
+}
 function nextNo(){const n=loadAll().map(q=>parseInt(String(q.no).split('-').pop())).filter(x=>x>0);return (n.length?Math.max(...n):0)+1;}
 function collect(){
  const items=[...document.querySelectorAll('#rows tr')].map(tr=>({cat:tr.querySelector('.cat').value,desc:tr.querySelector('.desc').value,unit:tr.querySelector('.unit').value,qty:tr.querySelector('.qty').value,rate:tr.querySelector('.rate').value,dr:tr.querySelector('.dr').value,amt:tr.querySelector('.amt').textContent}));
@@ -230,7 +246,7 @@ function saveQuote(silent){
  const a=loadAll(),i=a.findIndex(x=>x.no===curNo),d=a.findIndex(x=>x.no===q.no);
  if(d>=0&&d!==i){setSv('Number '+q.no+' is already used by another quotation',true);if(!silent)alert('Quotation number '+q.no+' is already used. Please change it.');return false;}
  if(i>=0)a[i]=q;else a.push(q);
- const ok=saveAll(a);curNo=q.no;renderList();
+ const ok=saveAll(a);curNo=q.no;renderList();pushQuote(q);
  if(!ok){setSv('Could not save in this browser. Use Backup file.',true);if(!silent)alert('This browser is blocking storage, so quotations will be lost when the page closes. Please use the Backup file button.');return false;}
  setSv('✓ Saved '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
  if(!silent){const b=$('save');b.textContent='Saved ✓';setTimeout(()=>b.textContent='💾 Save quotation',1500);}
@@ -252,7 +268,7 @@ function dl(name,text,type){const u=URL.createObjectURL(new Blob([text],{type}))
 $('list').addEventListener('click',e=>{
  const o=e.target.dataset.o,d=e.target.dataset.d;
  if(o)openQuote(o);
- if(d&&confirm('Delete quotation '+d+'?')){saveAll(loadAll().filter(x=>x.no!==d));renderList();}
+ if(d&&confirm('Delete quotation '+d+'?')){saveAll(loadAll().filter(x=>x.no!==d));renderList();if(cfg())cloudCall({action:'delete',no:d}).catch(()=>{});}
 });
 $('srch').addEventListener('input',renderList);
 window.addEventListener('beforeprint',()=>document.querySelectorAll('#rows tr').forEach(tr=>{const r=tr.querySelector('.rate');r.dataset.o=r.value;if(r.value!=='')r.value=Math.max((+r.value||0)-(+tr.querySelector('.dr').value||0),0);}));
@@ -268,6 +284,13 @@ async function printQuote(){
  }catch(e){alert('Could not prepare the quotation for printing. Please try again.');}
 }
 window.addEventListener('pagehide',()=>saveQuote(true));
+$('cloud').onclick=async()=>{
+ const c=cfg()||{};
+ const u=prompt('Paste your Google Apps Script Web app URL (starts with https://script.google.com/)',c.url||'');if(!u)return;
+ const k=prompt('Enter the secret password you set in the script',c.key||'');if(!k)return;
+ store.set('lk_cloud',JSON.stringify({url:u.trim(),key:k.trim()}));await syncAll();
+};
+$('syncnow').onclick=()=>cfg()?syncAll():alert('Please tap Cloud setup first.');
 $('save').onclick=()=>saveQuote(false);
 $('csv').onclick=()=>{
  const a=loadAll().sort((x,y)=>x.saved-y.saved);if(!a.length){alert('No saved quotations yet.');return;}
@@ -372,7 +395,7 @@ async function downloadImage(){
 $('dimg').onclick=downloadImage;
 $('wa').onclick=()=>shareImage('wa');
 $('mail').onclick=()=>shareImage('mail');
-initStore().then(()=>{newQuote();renderList();});
+initStore().then(()=>Promise.race([syncAll(),new Promise(r=>setTimeout(r,6000))])).then(()=>{newQuote();renderList();if(!cfg())setCl('☁ Cloud sync: not set up');});
 </script>
 </body>
 </html>
