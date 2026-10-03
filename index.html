@@ -127,6 +127,7 @@ td input,td select{padding:6px}
 <div class="card no-print" id="savedCard">
   <h2>Saved quotations <span id="cnt" style="color:var(--mute);font-weight:400"></span></h2>
   <div class="actions" style="margin:0 0 10px"><button class="btn" id="csv">⬇ Download all quotations (Excel/CSV)</button><button class="btn alt" id="bk">Backup file</button><label class="btn alt" style="cursor:pointer">Restore backup<input id="rest" type="file" accept=".json,application/json" hidden></label></div>
+  <div id="bkinfo" style="font-size:12px;color:var(--mute);margin-bottom:8px"></div>
   <input id="srch" placeholder="Search by number, name or phone">
   <div id="list"></div>
  </div>
@@ -195,9 +196,26 @@ $('rows').addEventListener('click',e=>{
 });
 $('add').onclick=()=>addRow();
 
+const idb={open(){return new Promise((s,j)=>{const r=indexedDB.open('lk',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>s(r.result);r.onerror=()=>j(r.error)})},
+async set(k,v){const d=await this.open();return new Promise((s,j)=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>s(true);t.onerror=()=>j(t.error)})},
+async get(k){const d=await this.open();return new Promise((s,j)=>{const r=d.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>s(r.result);r.onerror=()=>j(r.error)})}};
 const KEY='lk_quotes';
 const loadAll=()=>{try{return JSON.parse(store.get(KEY)||'[]')}catch(e){return[]}};
-const saveAll=a=>store.set(KEY,JSON.stringify(a));
+const saveAll=a=>{const j=JSON.stringify(a);idb.set(KEY,j).catch(()=>{});return store.set(KEY,j);};
+async function initStore(){
+ try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
+ try{
+  const I=JSON.parse(await idb.get(KEY)||'[]'),L=loadAll(),m=new Map();
+  [...I,...L].forEach(q=>{const o=m.get(q.no);if(!o||(q.saved||0)>(o.saved||0))m.set(q.no,q)});
+  const a=[...m.values()];
+  if(a.length!==L.length||a.length!==I.length)saveAll(a);
+ }catch(e){}
+}
+async function storageInfo(){
+ let p=false;try{p=await navigator.storage.persisted()}catch(e){}
+ const t=+store.get('lk_bk')||0,d=Math.floor((Date.now()-t)/864e5);
+ $('bkinfo').innerHTML=(p?'🔒 Storage protected':'⚠ Stored in this browser only')+' · '+(t?'Last backup '+(d?d+' day(s) ago':'today'):'<b style="color:#d32f2f">No backup yet</b>');
+}
 let curNo=null;
 function nextNo(){const n=loadAll().map(q=>parseInt(String(q.no).split('-').pop())).filter(x=>x>0);return (n.length?Math.max(...n):0)+1;}
 function collect(){
@@ -221,7 +239,7 @@ function saveQuote(silent){
 function renderList(){
  const a=loadAll().sort((x,y)=>y.saved-x.saved),s=$('srch').value.toLowerCase();
  const f=a.filter(q=>(q.no+' '+q.cname+' '+q.cphone).toLowerCase().includes(s));
- $('cnt').textContent='('+a.length+')';
+ $('cnt').textContent='('+a.length+')';storageInfo();
  $('list').innerHTML=f.length?f.map(q=>`<div class="qi"><div><b>${q.no}</b> · ${(q.cname||'No name').replace(/</g,'&lt;')}<br><small>${(q.date||'').split('-').reverse().join('-')} · ${q.total}</small></div><div><button class="btn alt" data-o="${q.no}">Open</button> <button class="x" data-d="${q.no}" title="Delete">🗑</button></div></div>`).join(''):'<p style="color:var(--mute)">No saved quotations yet.</p>';
 }
 function openQuote(no){
@@ -258,7 +276,7 @@ $('csv').onclick=()=>{
  a.forEach(q=>{(q.items.length?q.items:[{}]).forEach((i,k)=>rows.push([q.no,q.date,q.cname,q.cphone,q.caddr,k+1,i.cat,i.desc,i.unit,i.qty,i.rate,i.dr,i.amt,k?'':q.sub,k?'':q.trans,k?'':(q.gstOn?q.gst:'No GST'),k?'':(q.gstOn?q.gstAmt:''),k?'':q.total]))});
  dl('Laksshmi-Quotations.csv','\ufeff'+rows.map(r=>r.map(c).join(',')).join('\r\n'),'text/csv;charset=utf-8');
 };
-$('bk').onclick=()=>dl('Laksshmi-Quotations-Backup.json',JSON.stringify(loadAll()),'application/json');
+$('bk').onclick=()=>{store.set('lk_bk',String(Date.now()));storageInfo();dl('Laksshmi-Quotations-Backup.json',JSON.stringify(loadAll()),'application/json');};
 $('rest').onchange=async e=>{
  try{const r=JSON.parse(await e.target.files[0].text()),a=loadAll();
   r.forEach(q=>{const i=a.findIndex(x=>x.no===q.no);if(i>=0)a[i]=q;else a.push(q)});
@@ -354,7 +372,7 @@ async function downloadImage(){
 $('dimg').onclick=downloadImage;
 $('wa').onclick=()=>shareImage('wa');
 $('mail').onclick=()=>shareImage('mail');
-newQuote();renderList();
+initStore().then(()=>{newQuote();renderList();});
 </script>
 </body>
 </html>
