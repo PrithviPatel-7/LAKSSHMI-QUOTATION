@@ -48,8 +48,11 @@ td input,td select{padding:6px}
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
 .terms{border-left:5px solid var(--c3)}
 .sign{display:flex;justify-content:flex-end;margin-top:44px;font-size:13px;color:var(--mute)}
+.qi{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line)}
+.qi small{color:var(--mute)}.qi .btn{padding:6px 14px;font-size:13px}#list{margin-top:8px}
 .sign span{border-top:1px solid var(--mute);padding-top:4px}
 @media print{
+ .dcol,.ccol{display:none!important}
  body{background:#fff;color:#000}.no-print{display:none!important}
  .card{box-shadow:none;border-color:#ddd}.wrap{padding:0}.banner{box-shadow:none}
  input,select,textarea{border:0;background:none;padding:2px;appearance:none;-webkit-appearance:none;color:#000}
@@ -81,7 +84,7 @@ td input,td select{padding:6px}
   <h2>Items</h2>
   <div class="scroll">
   <table>
-   <thead><tr><th>#</th><th style="width:120px">Category</th><th>Description / Size / Brand</th><th style="width:90px">Unit</th><th style="width:70px">Qty</th><th style="width:90px">Rate ₹</th><th style="width:90px">Disc ₹/unit</th><th class="num" style="width:105px">Amount ₹</th><th class="no-print"></th></tr></thead>
+   <thead><tr><th>#</th><th class="ccol" style="width:120px">Category</th><th>Description / Size / Brand</th><th style="width:90px">Unit</th><th style="width:70px">Qty</th><th style="width:90px">Rate ₹</th><th class="dcol" style="width:90px">Disc ₹/unit</th><th class="num" style="width:105px">Amount ₹</th><th class="no-print"></th></tr></thead>
    <tbody id="rows"></tbody>
   </table>
   </div>
@@ -111,13 +114,19 @@ td input,td select{padding:6px}
  </div>
 
  <div class="actions no-print" style="margin-bottom:24px">
-  <button class="btn" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <button class="btn" onclick="saveQuote(true);window.print()">🖨 Print / Save as PDF</button>
+  <button class="btn alt" id="save">💾 Save quotation</button>
   <button class="btn alt" id="wa">Share on WhatsApp</button>
   <button class="btn alt" id="mail">Email via Gmail</button>
   <button class="btn alt" id="reset">New quotation</button>
  </div>
+<div class="card no-print" id="savedCard">
+  <h2>Saved quotations <span id="cnt" style="color:var(--mute);font-weight:400"></span></h2>
+  <div class="actions" style="margin:0 0 10px"><button class="btn" id="csv">⬇ Download all quotations (Excel/CSV)</button><button class="btn alt" id="bk">Backup file</button><label class="btn alt" style="cursor:pointer">Restore backup<input id="rest" type="file" accept=".json,application/json" hidden></label></div>
+  <input id="srch" placeholder="Search by number, name or phone">
+  <div id="list"></div>
+ </div>
 </div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -141,12 +150,12 @@ function addRow(d={}){
  const tr=document.createElement('tr');
  const cat=d.cat||'Tiles';
  tr.innerHTML=`<td class="n"></td>
- <td><select class="cat">${Object.keys(CATS).map(c=>`<option ${c==cat?'selected':''}>${c}</option>`).join('')}</select></td>
+ <td class="ccol"><select class="cat">${Object.keys(CATS).map(c=>`<option ${c==cat?'selected':''}>${c}</option>`).join('')}</select></td>
  <td><input class="desc" placeholder="e.g. Vitrified 600x600 glossy" value="${d.desc||''}"></td>
  <td><select class="unit"></select></td>
  <td><input class="qty num" type="number" min="0" step="any" value="${d.qty||''}"></td>
  <td><input class="rate num" type="number" min="0" step="any" value="${d.rate||''}"></td>
- <td><input class="dr num" type="number" min="0" step="any" value="${d.dr||''}"></td>
+ <td class="dcol"><input class="dr num" type="number" min="0" step="any" value="${d.dr||''}"></td>
  <td class="amt">0.00</td>
  <td class="no-print"><button class="x" title="Remove">×</button></td>`;
  $('rows').appendChild(tr);
@@ -178,15 +187,68 @@ $('rows').addEventListener('click',e=>{
 });
 $('add').onclick=()=>addRow();
 
+const KEY='lk_quotes';
+const loadAll=()=>{try{return JSON.parse(store.get(KEY)||'[]')}catch(e){return[]}};
+const saveAll=a=>store.set(KEY,JSON.stringify(a));
+function nextNo(){const n=loadAll().map(q=>parseInt(String(q.no).split('-').pop())).filter(x=>x>0);return (n.length?Math.max(...n):0)+1;}
+function collect(){
+ const items=[...document.querySelectorAll('#rows tr')].map(tr=>({cat:tr.querySelector('.cat').value,desc:tr.querySelector('.desc').value,unit:tr.querySelector('.unit').value,qty:tr.querySelector('.qty').value,rate:tr.querySelector('.rate').value,dr:tr.querySelector('.dr').value,amt:tr.querySelector('.amt').textContent}));
+ return {no:$('qno').value,date:$('qdate').value,cname:$('cname').value,cphone:$('cphone').value,caddr:$('caddr').value,gstOn:$('gstOn').checked,gst:$('gst').value,trans:$('trans').value,terms:$('terms').value,sub:$('sub').textContent,gstAmt:$('gstAmt').textContent,total:$('grand').textContent,items,saved:Date.now()};
+}
+function saveQuote(silent){
+ const q=collect();
+ if(!q.items.some(i=>i.amt!=='0.00')){if(!silent)alert('Add at least one item with a rate first.');return false;}
+ const a=loadAll(),i=a.findIndex(x=>x.no===q.no);if(i>=0)a[i]=q;else a.push(q);
+ saveAll(a);renderList();
+ if(!silent){const b=$('save');b.textContent='Saved ✓';setTimeout(()=>b.textContent='💾 Save quotation',1500);}
+ return true;
+}
+function renderList(){
+ const a=loadAll().sort((x,y)=>y.saved-x.saved),s=$('srch').value.toLowerCase();
+ const f=a.filter(q=>(q.no+' '+q.cname+' '+q.cphone).toLowerCase().includes(s));
+ $('cnt').textContent='('+a.length+')';
+ $('list').innerHTML=f.length?f.map(q=>`<div class="qi"><div><b>${q.no}</b> · ${(q.cname||'No name').replace(/</g,'&lt;')}<br><small>${q.date.split('-').reverse().join('-')} · ${q.total}</small></div><div><button class="btn alt" data-o="${q.no}">Open</button> <button class="x" data-d="${q.no}" title="Delete">🗑</button></div></div>`).join(''):'<p style="color:var(--mute)">No saved quotations yet.</p>';
+}
+function openQuote(no){
+ const q=loadAll().find(x=>x.no===no);if(!q)return;
+ $('qno').value=q.no;$('qdate').value=q.date;$('cname').value=q.cname;$('cphone').value=q.cphone;$('caddr').value=q.caddr;
+ $('gstOn').checked=q.gstOn;$('gst').value=q.gst;$('trans').value=q.trans;$('terms').value=q.terms;
+ $('rows').innerHTML='';q.items.forEach(i=>addRow(i));if(!q.items.length)addRow();calc();window.scrollTo({top:0,behavior:'smooth'});
+}
+function dl(name,text,type){const u=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();}
+$('list').addEventListener('click',e=>{
+ const o=e.target.dataset.o,d=e.target.dataset.d;
+ if(o)openQuote(o);
+ if(d&&confirm('Delete quotation '+d+'?')){saveAll(loadAll().filter(x=>x.no!==d));renderList();}
+});
+$('srch').addEventListener('input',renderList);
+window.addEventListener('beforeprint',()=>document.querySelectorAll('#rows tr').forEach(tr=>{const r=tr.querySelector('.rate');r.dataset.o=r.value;if(r.value!=='')r.value=Math.max((+r.value||0)-(+tr.querySelector('.dr').value||0),0);}));
+window.addEventListener('afterprint',()=>document.querySelectorAll('#rows .rate').forEach(r=>{if(r.dataset.o!==undefined)r.value=r.dataset.o;}));
+$('save').onclick=()=>saveQuote(false);
+$('csv').onclick=()=>{
+ const a=loadAll().sort((x,y)=>x.saved-y.saved);if(!a.length){alert('No saved quotations yet.');return;}
+ const c=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+ const rows=[['Quotation No','Date','Customer','Phone','Address','Sl','Category','Description','Unit','Qty','Rate','Discount/unit','Amount','Sub-total','Transport','GST %','GST Amount','Grand Total']];
+ a.forEach(q=>{(q.items.length?q.items:[{}]).forEach((i,k)=>rows.push([q.no,q.date,q.cname,q.cphone,q.caddr,k+1,i.cat,i.desc,i.unit,i.qty,i.rate,i.dr,i.amt,k?'':q.sub,k?'':q.trans,k?'':(q.gstOn?q.gst:'No GST'),k?'':(q.gstOn?q.gstAmt:''),k?'':q.total]))});
+ dl('Laksshmi-Quotations.csv','\ufeff'+rows.map(r=>r.map(c).join(',')).join('\r\n'),'text/csv;charset=utf-8');
+};
+$('bk').onclick=()=>dl('Laksshmi-Quotations-Backup.json',JSON.stringify(loadAll()),'application/json');
+$('rest').onchange=async e=>{
+ try{const r=JSON.parse(await e.target.files[0].text()),a=loadAll();
+  r.forEach(q=>{const i=a.findIndex(x=>x.no===q.no);if(i>=0)a[i]=q;else a.push(q)});
+  saveAll(a);renderList();alert('Restored '+r.length+' quotation(s).');
+ }catch(x){alert('That file could not be read.');}
+ e.target.value='';
+};
 function newQuote(){
  $('rows').innerHTML='';
  ['cname','cphone','caddr'].forEach(i=>$(i).value='');
  $('qdate').value=new Date().toISOString().slice(0,10);
- let n=(+store.get('lk_last')||0)+1;
+ let n=nextNo();
  $('qno').value='LTH-'+new Date().getFullYear()+'-'+String(n).padStart(4,'0');
  addRow();addRow();
 }
-$('reset').onclick=()=>{if(confirm('Start a new quotation? Current entries will be cleared.')){store.set('lk_last',(+store.get('lk_last')||0)+1);newQuote();}};
+$('reset').onclick=()=>{if(confirm('Start a new quotation? The current one will be saved first.')){saveQuote(true);newQuote();}};
 const rs=n=>'₹'+fmt(n);
 function snapshot(){
  const rows=[...document.querySelectorAll('#rows tr')].filter(tr=>tr.querySelector('.amt').textContent!=='0.00');
@@ -212,8 +274,8 @@ function snapshot(){
  <div class="s"><b>GSTIN: 33AAKFA3444L1ZG</b></div></div></div>
  <div class="m"><div><b>QUOTATION</b><br>No: ${$('qno').value}<br>Date: ${$('qdate').value.split('-').reverse().join('-')}</div>
  <div class="r"><b>To:</b> ${$('cname').value||'-'}<br>${$('cphone').value}<br>${$('caddr').value}</div></div>
- <table><tr><th>#</th><th>Description</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Disc/unit</th><th class="r">Amount</th></tr>
- ${rows.map((r,i)=>`<tr><td>${i+1}</td><td><b>${r.querySelector('.cat').value}</b> ${r.querySelector('.desc').value}</td><td class="r">${r.querySelector('.qty').value} ${r.querySelector('.unit').value}</td><td class="r">${fmt(+r.querySelector('.rate').value||0)}</td><td class="r">${r.querySelector('.dr').value?fmt(+r.querySelector('.dr').value):'-'}</td><td class="r"><b>${r.querySelector('.amt').textContent}</b></td></tr>`).join('')}</table>
+ <table><tr><th>#</th><th>Description</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr>
+ ${rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.querySelector('.desc').value.replace(/</g,'&lt;')}</td><td class="r">${r.querySelector('.qty').value} ${r.querySelector('.unit').value}</td><td class="r">${fmt(Math.max((+r.querySelector('.rate').value||0)-(+r.querySelector('.dr').value||0),0))}</td><td class="r"><b>${r.querySelector('.amt').textContent}</b></td></tr>`).join('')}</table>
  <div class="t"><div><span>Sub-total</span><span>${rs(+$('sub').textContent.replace(/,/g,''))}</span></div>
  ${tr?`<div><span>Transport / Loading</span><span>${rs(tr)}</span></div>`:''}
  ${on?`<div><span>GST ${$('gst').value}%</span><span>${rs(+$('gstAmt').textContent.replace(/,/g,''))}</span></div>`:''}
@@ -230,6 +292,7 @@ async function makeImage(){
  finally{el.remove();}
 }
 async function shareImage(kind){
+ saveQuote(true);
  const btn=$(kind==='wa'?'wa':'mail'),old=btn.textContent;btn.textContent='Preparing…';btn.disabled=true;
  try{
   const blob=await makeImage(),name='Quotation-'+$('qno').value+'.png',file=new File([blob],name,{type:'image/png'});
@@ -254,7 +317,7 @@ function showPreview(blob,name,kind){
 }
 $('wa').onclick=()=>shareImage('wa');
 $('mail').onclick=()=>shareImage('mail');
-newQuote();
+newQuote();renderList();
 </script>
 </body>
 </html>
