@@ -93,6 +93,7 @@ td input,td select{padding:6px}
   </div>
   <div class="actions no-print"><button class="btn alt" id="add">+ Add item</button></div>
 
+  <div class="no-print" style="margin-top:14px;padding:10px 12px;border:1px dashed var(--c2);border-radius:12px;background:var(--soft)"><label style="display:flex;gap:8px;align-items:center;margin:0;font-size:15px;color:inherit;cursor:pointer"><input type="checkbox" id="rateOn" checked style="width:auto"> <b>Show rate column when saving, sending or printing</b></label><small style="color:var(--mute)">Untick to hide the Rate column. Amounts and grand total still show.</small></div>
   <div class="totals">
    <div><span>Sub-total</span><b id="sub">0.00</b></div>
    <div><span>Transport / Loading ₹</span><input id="trans" type="number" value="0" min="0"></div>
@@ -236,7 +237,7 @@ async function syncAll(){
 function nextNo(){const n=loadAll().map(q=>parseInt(String(q.no).split('-').pop())).filter(x=>x>0);return (n.length?Math.max(...n):0)+1;}
 function collect(){
  const items=[...document.querySelectorAll('#rows tr')].map(tr=>({cat:tr.querySelector('.cat').value,desc:tr.querySelector('.desc').value,unit:tr.querySelector('.unit').value,qty:tr.querySelector('.qty').value,rate:tr.querySelector('.rate').value,dr:tr.querySelector('.dr').value,amt:tr.querySelector('.amt').textContent}));
- return {no:$('qno').value,date:$('qdate').value,cname:$('cname').value,cphone:$('cphone').value,caddr:$('caddr').value,gstOn:$('gstOn').checked,gst:$('gst').value,trans:$('trans').value,terms:$('terms').value,sub:$('sub').textContent,gstAmt:$('gstAmt').textContent,total:$('grand').textContent,items,saved:Date.now()};
+ return {rateOn:$('rateOn').checked,no:$('qno').value,date:$('qdate').value,cname:$('cname').value,cphone:$('cphone').value,caddr:$('caddr').value,gstOn:$('gstOn').checked,gst:$('gst').value,trans:$('trans').value,terms:$('terms').value,sub:$('sub').textContent,gstAmt:$('gstAmt').textContent,total:$('grand').textContent,items,saved:Date.now()};
 }
 function setSv(t,bad){const s=$('sv');s.textContent=t;s.style.color=bad?'#d32f2f':'var(--mute)';}
 function saveQuote(silent){
@@ -261,7 +262,7 @@ function renderList(){
 function openQuote(no){
  const q=loadAll().find(x=>x.no===no);if(!q)return;
  $('qno').value=q.no;curNo=q.no;$('qdate').value=q.date;$('cname').value=q.cname;$('cphone').value=q.cphone;$('caddr').value=q.caddr;
- $('gstOn').checked=q.gstOn;$('gst').value=q.gst;$('trans').value=q.trans;$('terms').value=q.terms;
+ $('rateOn').checked=q.rateOn!==false;$('gstOn').checked=q.gstOn;$('gst').value=q.gst;$('trans').value=q.trans;$('terms').value=q.terms;
  $('rows').innerHTML='';q.items.forEach(i=>addRow(i));if(!q.items.length)addRow();calc();window.scrollTo({top:0,behavior:'smooth'});
 }
 function dl(name,text,type){const u=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();}
@@ -296,7 +297,7 @@ $('csv').onclick=()=>{
  const a=loadAll().sort((x,y)=>x.saved-y.saved);if(!a.length){alert('No saved quotations yet.');return;}
  const c=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
  const rows=[['Quotation No','Date','Customer','Phone','Address','Sl','Category','Description','Unit','Qty','Rate','Discount/unit','Amount','Sub-total','Transport','GST %','GST Amount','Grand Total']];
- a.forEach(q=>{(q.items.length?q.items:[{}]).forEach((i,k)=>rows.push([q.no,q.date,q.cname,q.cphone,q.caddr,k+1,i.cat,i.desc,i.unit,i.qty,i.rate,i.dr,i.amt,k?'':q.sub,k?'':q.trans,k?'':(q.gstOn?q.gst:'No GST'),k?'':(q.gstOn?q.gstAmt:''),k?'':q.total]))});
+ a.forEach(q=>{(q.items.length?q.items:[{}]).forEach((i,k)=>(q.rateOn===false)?rows.push([q.no,q.date,q.cname,q.cphone,q.caddr,k+1,i.cat,i.desc,i.unit,i.qty,'','',i.amt,k?'':q.sub,k?'':q.trans,k?'':(q.gstOn?q.gst:'No GST'),k?'':(q.gstOn?q.gstAmt:''),k?'':q.total]):rows.push([q.no,q.date,q.cname,q.cphone,q.caddr,k+1,i.cat,i.desc,i.unit,i.qty,i.rate,i.dr,i.amt,k?'':q.sub,k?'':q.trans,k?'':(q.gstOn?q.gst:'No GST'),k?'':(q.gstOn?q.gstAmt:''),k?'':q.total]))});
  dl('Laksshmi-Quotations.csv','\ufeff'+rows.map(r=>r.map(c).join(',')).join('\r\n'),'text/csv;charset=utf-8');
 };
 $('bk').onclick=()=>{store.set('lk_bk',String(Date.now()));storageInfo();dl('Laksshmi-Quotations-Backup.json',JSON.stringify(loadAll()),'application/json');};
@@ -308,6 +309,7 @@ $('rest').onchange=async e=>{
  e.target.value='';
 };
 function newQuote(){
+ $('rateOn').checked=true;
  $('rows').innerHTML='';
  ['cname','cphone','caddr'].forEach(i=>$(i).value='');
  $('qdate').value=new Date().toISOString().slice(0,10);
@@ -319,7 +321,7 @@ $('reset').onclick=()=>{if(confirm('Start a new quotation? The current one will 
 const rs=n=>'₹'+fmt(n);
 function snapshot(){
  const rows=[...document.querySelectorAll('#rows tr')].filter(tr=>tr.querySelector('.amt').textContent!=='0.00');
- const on=$('gstOn').checked,tr=+$('trans').value||0;
+ const on=$('gstOn').checked,tr=+$('trans').value||0,ro=$('rateOn').checked;
  const d=document.createElement('div');d.id='snap';
  d.innerHTML=`<style>
  #snap{position:fixed;left:-9999px;top:0;width:820px;background:#fff;color:#2b1b2e;font:14px/1.4 system-ui,Arial,sans-serif;padding:20px}
@@ -341,8 +343,8 @@ function snapshot(){
  <div class="s"><b>GSTIN: 33AAKFA3444L1ZG</b></div></div></div>
  <div class="m"><div><b>QUOTATION</b><br>No: ${$('qno').value}<br>Date: ${$('qdate').value.split('-').reverse().join('-')}</div>
  <div class="r"><b>To:</b> ${$('cname').value||'-'}<br>${$('cphone').value}<br>${$('caddr').value}</div></div>
- <table><tr><th>#</th><th>Description</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr>
- ${rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.querySelector('.desc').value.replace(/</g,'&lt;')}</td><td class="r">${r.querySelector('.qty').value} ${r.querySelector('.unit').value}</td><td class="r">${fmt(Math.max((+r.querySelector('.rate').value||0)-(+r.querySelector('.dr').value||0),0))}</td><td class="r"><b>${r.querySelector('.amt').textContent}</b></td></tr>`).join('')}</table>
+ <table><tr><th>#</th><th>Description</th><th class="r">Qty</th>${ro?'<th class="r">Rate</th>':''}<th class="r">Amount</th></tr>
+ ${rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.querySelector('.desc').value.replace(/</g,'&lt;')}</td><td class="r">${r.querySelector('.qty').value} ${r.querySelector('.unit').value}</td>${ro?`<td class="r">${fmt(Math.max((+r.querySelector('.rate').value||0)-(+r.querySelector('.dr').value||0),0))}</td>`:''}<td class="r"><b>${r.querySelector('.amt').textContent}</b></td></tr>`).join('')}</table>
  <div class="t"><div><span>Sub-total</span><span>${rs(+$('sub').textContent.replace(/,/g,''))}</span></div>
  ${tr?`<div><span>Transport / Loading</span><span>${rs(tr)}</span></div>`:''}
  ${on?`<div><span>GST ${$('gst').value}%</span><span>${rs(+$('gstAmt').textContent.replace(/,/g,''))}</span></div>`:''}
