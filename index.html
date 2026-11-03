@@ -127,7 +127,7 @@ td input,td select{padding:6px}
  </div>
 <div class="card no-print" id="savedCard">
   <h2>Saved quotations &amp; sales <span id="cnt" style="color:var(--mute);font-weight:400"></span></h2>
-  <div class="actions" style="margin:0 0 10px"><button class="btn" id="csv">⬇ Download all quotations (Excel/CSV)</button><button class="btn alt" id="bk">Backup file</button><label class="btn alt" style="cursor:pointer">Restore backup<input id="rest" type="file" accept=".json,application/json" hidden></label><button class="btn alt" id="cloud">☁ Cloud setup</button><button class="btn alt" id="syncnow">Sync now</button></div>
+  <div class="actions" style="margin:0 0 10px"><button class="btn" id="csv">⬇ Download all quotations (Excel/CSV)</button><button class="btn alt" id="bk">Backup file</button><label class="btn alt" style="cursor:pointer">Restore backup<input id="rest" type="file" accept=".json,application/json" hidden></label><button class="btn alt" id="cloud">☁ Cloud setup</button><button class="btn alt" id="syncnow">Sync now</button><button class="btn alt" id="slink">🔗 Copy setup link</button><button class="btn alt" id="perm">📌 Make permanent</button></div>
   <div id="bkinfo" style="font-size:12px;color:var(--mute);margin-bottom:8px"></div>
   <div id="cloudinfo" style="font-size:12px;color:var(--mute);margin-bottom:8px"></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="srch" placeholder="Search by number, name or phone" style="flex:1;min-width:200px"><select id="lf" style="width:auto"><option value="">All</option><option value="quotation">Quotations</option><option value="sales">Sales</option></select></div>
@@ -136,6 +136,8 @@ td input,td select{padding:6px}
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
+// ---- PERMANENT GOOGLE SHEET CONNECTION (optional): paste your values between the quotes, or use the page's "Make permanent" button ----
+const BUILTIN_CLOUD={url:'',key:''};
 const $=id=>document.getElementById(id);
 const CATS={Tiles:['sq.ft','box','nos'],Sanitaryware:['nos','set'],Granite:['sq.ft','running ft'],Cudappa:['sq.ft','running ft','nos'],Doors:['nos','set'],Timber:['cu.ft','running ft','nos'],Hardware:['nos','kg','set'],Other:['nos']};
 const fmt=n=>n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -241,11 +243,13 @@ function applyType(){
 }
 const numOf=n=>parseInt(String(n).split('-').pop())||0;
 const fmtNo=(prev,n)=>(String(prev).replace(/\d+$/,'')||'LTH-'+new Date().getFullYear()+'-')+String(n).padStart(4,'0');
-const cfg=()=>{try{return JSON.parse(store.get('lk_cloud')||'null')}catch(e){return null}};
+const cfg=()=>{try{const c=JSON.parse(store.get('lk_cloud')||'null');if(c&&c.url&&c.key)return c;}catch(e){}return BUILTIN_CLOUD.url&&BUILTIN_CLOUD.key?BUILTIN_CLOUD:null;};
 function setCl(t,bad){const e=$('cloudinfo');if(e){e.textContent=t;e.style.color=bad?'#d32f2f':'var(--mute)';}}
 async function cloudCall(body){const c=cfg();const r=await fetch(c.url,{method:'POST',body:JSON.stringify({...body,key:c.key})});const j=await r.json();if(j.error)throw new Error(j.error);return j;}
 async function pushQuote(q){if(!cfg())return;try{await cloudCall({action:'save',quote:q});setCl('☁ Saved to Google Sheet at '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));}catch(e){setCl('☁ Could not reach Google Sheet. It will sync next time.',true);}}
-async function syncAll(){
+let syncing=false;
+async function syncAll(){if(syncing)return;syncing=true;try{await syncRun();}finally{syncing=false;}}
+async function syncRun(){
  const c=cfg();if(!c)return;setCl('☁ Syncing…');
  try{
   const r=await fetch(c.url+'?key='+encodeURIComponent(c.key)),j=await r.json();if(j.error)throw new Error(j.error);
@@ -337,6 +341,24 @@ $('cloud').onclick=async()=>{
  const k=prompt('Enter the secret password you set in the script',c.key||'');if(!k)return;
  store.set('lk_cloud',JSON.stringify({url:u.trim(),key:k.trim()}));await syncAll();
 };
+$('perm').onclick=async()=>{
+ const c=cfg();if(!c){alert('Please tap Cloud setup first.');return;}
+ const line='const BUILTIN_CLOUD='+JSON.stringify({url:c.url,key:c.key})+';';
+ try{await navigator.clipboard.writeText(line);alert('Copied. In GitHub, open index.html, tap the pencil (Edit), find the line starting with "const BUILTIN_CLOUD" near the top, replace it with the copied line, and tap Commit changes. After that every device connects to your Google Sheet automatically, with nothing to set up.\n\nNote: anyone who views the page source can then see the sheet password, so use a password only for this sheet.');}catch(e){prompt('Copy this line and paste it over the "const BUILTIN_CLOUD" line in index.html on GitHub:',line);}
+};
+$('slink').onclick=async()=>{
+ const c=cfg();if(!c){alert('Please tap Cloud setup first.');return;}
+ const u=location.href.split('#')[0]+'#setup='+btoa(unescape(encodeURIComponent(JSON.stringify(c))));
+ try{await navigator.clipboard.writeText(u);alert('Setup link copied. Open it on another phone or computer and it connects to your Google Sheet automatically. Keep it private: it contains your sheet password.');}catch(e){prompt('Copy this setup link:',u);}
+};
+function applySetupLink(){
+ const m=location.hash.match(/^#setup=(.+)$/);if(!m)return;
+ try{const c=JSON.parse(decodeURIComponent(escape(atob(m[1]))));if(c.url&&c.key)store.set('lk_cloud',JSON.stringify(c));}catch(e){}
+ try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&cfg())syncAll();});
+window.addEventListener('online',()=>{if(cfg())syncAll();});
+setInterval(()=>{if(!document.hidden&&cfg())syncAll();},60000);
 $('syncnow').onclick=()=>cfg()?syncAll():alert('Please tap Cloud setup first.');
 $('save').onclick=()=>saveQuote(false);
 $('csv').onclick=()=>{
@@ -443,7 +465,7 @@ async function downloadImage(){
 $('dimg').onclick=downloadImage;
 $('wa').onclick=()=>shareImage('wa');
 $('mail').onclick=()=>shareImage('mail');
-initStore().then(()=>Promise.race([syncAll(),new Promise(r=>setTimeout(r,6000))])).then(()=>{newQuote();renderList();if(!cfg())setCl('☁ Cloud sync: not set up');});
+initStore().then(()=>{applySetupLink();newQuote();renderList();if(cfg())syncAll();else setCl('☁ Cloud sync: not set up (tap Cloud setup)');});
 </script>
 </body>
 </html>
