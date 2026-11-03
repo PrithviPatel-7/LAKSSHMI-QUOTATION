@@ -29,7 +29,7 @@ label{display:block;font-size:12px;color:var(--mute);margin-bottom:3px}
 input,select,textarea{width:100%;font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:8px}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--c3);outline-offset:0}
 .scroll{overflow-x:auto;border-radius:12px}
-table{width:100%;border-collapse:collapse;min-width:800px}
+table{width:100%;border-collapse:collapse;min-width:860px}
 th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#fff;text-align:left;padding:9px 5px;background:var(--grad);-webkit-print-color-adjust:exact;print-color-adjust:exact}
 th:first-child{border-radius:10px 0 0 0}th:last-child{border-radius:0 10px 0 0}
 td{padding:6px 3px;border-bottom:1px solid var(--line);vertical-align:middle}
@@ -72,10 +72,10 @@ td input,td select{padding:6px}
    <div class="cats">Tiles • Sanitarywares • Granites • Doors • Timbers</div>
    <div class="contact"><span>📍 119C, Meenkarai Road, Zamin Uthukuli, Pollachi - 642004</span><span>📞 9843620152 | 9843620191</span><span>✉ lakshmibathhome@gmail.com</span><span><b>GSTIN: 33AAKFA3444L1ZG</b></span></div>
   </div>
-  <div class="qtag">QUOTATION</div>
+  <div class="qtag" id="qtag">QUOTATION</div>
  </header>
  <div class="two">
-  <div class="card"><h2>Quotation</h2><div class="grid"><div><label>Quotation No.</label><input id="qno" readonly title="Quotation number is fixed" style="font-weight:700;cursor:not-allowed"></div><div><label>Date</label><input id="qdate" type="date"></div></div></div>
+  <div class="card"><h2 id="hq">Quotation</h2><div class="grid"><div><label>Document type</label><select id="dtype" style="font-weight:700"><option value="quotation">Quotation</option><option value="sales">Sales invoice</option></select></div><div><label id="lno">Quotation No.</label><input id="qno" title="You can edit this number" style="font-weight:700"></div><div><label>Date</label><input id="qdate" type="date"></div></div></div>
   <div class="card"><h2>Customer</h2><div class="grid">
    <div><label>Name</label><input id="cname" placeholder="Customer name"></div>
    <div><label>Phone</label><input id="cphone" type="tel" placeholder="Mobile number"></div>
@@ -87,11 +87,11 @@ td input,td select{padding:6px}
   <h2>Items</h2>
   <div class="scroll">
   <table>
-   <thead><tr><th>#</th><th class="ccol" style="width:120px">Category</th><th>Description / Size / Brand</th><th style="width:90px">Unit</th><th style="width:70px">Qty</th><th style="width:90px">Rate ₹</th><th class="dcol" style="width:90px">Disc ₹/unit</th><th class="num" style="width:105px">Amount ₹</th><th class="no-print"></th></tr></thead>
+   <thead><tr><th>#</th><th class="ccol" style="width:120px">Category</th><th>Description / Size / Brand</th><th style="width:90px">Unit</th><th style="width:70px">Qty</th><th style="width:90px">Rate ₹</th><th class="dcol" style="width:150px">Discount (% or ₹/unit)</th><th class="num" style="width:105px">Amount ₹</th><th class="no-print"></th></tr></thead>
    <tbody id="rows"></tbody>
   </table>
   </div>
-  <div class="actions no-print"><button class="btn alt" id="add">+ Add item</button></div>
+  <div class="actions no-print"><button class="btn alt" id="add">+ Add item</button><span style="align-self:center;font-size:12px;color:var(--mute)">Discount: type a % to reduce by percentage; leave % empty to reduce by ₹ per unit.</span></div>
 
   <div class="no-print" style="margin-top:14px;padding:10px 12px;border:1px dashed var(--c2);border-radius:12px;background:var(--soft)"><label style="display:flex;gap:8px;align-items:center;margin:0;font-size:15px;color:inherit;cursor:pointer"><input type="checkbox" id="rateOn" checked style="width:auto"> <b>Show rate column when saving, sending or printing</b></label><small style="color:var(--mute)">Untick to hide the Rate column. Amounts and grand total still show.</small></div>
   <div class="totals">
@@ -119,18 +119,18 @@ td input,td select{padding:6px}
 
  <div class="actions no-print" style="margin-bottom:24px">
   <button class="btn" onclick="printQuote()">🖨 Print / Save as PDF</button>
-  <button class="btn alt" id="save">💾 Save quotation</button><span id="sv" style="align-self:center;font-size:12px;color:var(--mute)"></span>
+  <button class="btn alt" id="save">💾 Save</button><span id="sv" style="align-self:center;font-size:12px;color:var(--mute)"></span>
   <button class="btn alt" id="dimg">🖼 Download as image</button>
   <button class="btn alt" id="wa">Share on WhatsApp</button>
   <button class="btn alt" id="mail">Email via Gmail</button>
-  <button class="btn alt" id="reset">New quotation</button>
+  <button class="btn alt" id="reset">+ New</button>
  </div>
 <div class="card no-print" id="savedCard">
-  <h2>Saved quotations <span id="cnt" style="color:var(--mute);font-weight:400"></span></h2>
+  <h2>Saved quotations &amp; sales <span id="cnt" style="color:var(--mute);font-weight:400"></span></h2>
   <div class="actions" style="margin:0 0 10px"><button class="btn" id="csv">⬇ Download all quotations (Excel/CSV)</button><button class="btn alt" id="bk">Backup file</button><label class="btn alt" style="cursor:pointer">Restore backup<input id="rest" type="file" accept=".json,application/json" hidden></label><button class="btn alt" id="cloud">☁ Cloud setup</button><button class="btn alt" id="syncnow">Sync now</button></div>
   <div id="bkinfo" style="font-size:12px;color:var(--mute);margin-bottom:8px"></div>
   <div id="cloudinfo" style="font-size:12px;color:var(--mute);margin-bottom:8px"></div>
-  <input id="srch" placeholder="Search by number, name or phone">
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="srch" placeholder="Search by number, name or phone" style="flex:1;min-width:200px"><select id="lf" style="width:auto"><option value="">All</option><option value="quotation">Quotations</option><option value="sales">Sales</option></select></div>
   <div id="list"></div>
  </div>
 </div>
@@ -164,7 +164,7 @@ function addRow(d={}){
  <td><select class="unit"></select></td>
  <td><input class="qty num" type="number" min="0" step="any" value="${d.qty||''}"></td>
  <td><input class="rate num" type="number" min="0" step="any" value="${d.rate||''}"></td>
- <td class="dcol"><input class="dr num" type="number" min="0" step="any" value="${d.dr||''}"></td>
+ <td class="dcol"><div style="display:flex;gap:4px"><input class="dp num" type="number" min="0" max="100" step="any" placeholder="%" title="Discount in percent" value="${d.dp||''}"><input class="dr num" type="number" min="0" step="any" placeholder="₹" title="Discount in rupees per unit" value="${d.dr||''}"></div></td>
  <td class="amt">0.00</td>
  <td class="no-print"><button class="x" title="Remove">×</button></td>`;
  $('rows').appendChild(tr);
@@ -175,12 +175,13 @@ function setUnits(tr,sel){
  const c=tr.querySelector('.cat').value;
  tr.querySelector('.unit').innerHTML=CATS[c].map(u=>`<option ${u==sel?'selected':''}>${u}</option>`).join('');
 }
+const netRate=tr=>{const r=+tr.querySelector('.rate').value||0,p=+tr.querySelector('.dp').value||0,d=+tr.querySelector('.dr').value||0;return Math.max(p>0?r*(1-Math.min(p,100)/100):r-d,0);};
 function calc(){
  let sub=0;
  document.querySelectorAll('#rows tr').forEach((tr,i)=>{
   tr.querySelector('.n').textContent=i+1;
-  const q=+tr.querySelector('.qty').value||0,r=+tr.querySelector('.rate').value||0,d=+tr.querySelector('.dr').value||0;
-  const a=q*Math.max(r-d,0);sub+=a;tr.querySelector('.amt').textContent=fmt(a);
+  const q=+tr.querySelector('.qty').value||0;
+  const a=q*netRate(tr);sub+=a;tr.querySelector('.amt').textContent=fmt(a);
  });
  const base=sub+(+$('trans').value||0),on=$('gstOn').checked,g=on?base*(+$('gst').value||0)/100:0,tot=base+g;
  $('gstBox').style.display=on?'':'none';
@@ -189,7 +190,7 @@ function calc(){
 }
 let asT;
 document.addEventListener('input',e=>{
- if(!['srch','rest'].includes(e.target.id)){clearTimeout(asT);asT=setTimeout(()=>saveQuote(true),700);}
+ if(!['srch','rest','qno'].includes(e.target.id)){clearTimeout(asT);asT=setTimeout(()=>saveQuote(true),700);}
  if(e.target.classList.contains('cat'))setUnits(e.target.closest('tr'));
   calc();
 });
@@ -202,13 +203,13 @@ const idb={open(){return new Promise((s,j)=>{const r=indexedDB.open('lk',1);r.on
 async set(k,v){const d=await this.open();return new Promise((s,j)=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>s(true);t.onerror=()=>j(t.error)})},
 async get(k){const d=await this.open();return new Promise((s,j)=>{const r=d.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>s(r.result);r.onerror=()=>j(r.error)})}};
 const KEY='lk_quotes';
-const loadAll=()=>{try{return JSON.parse(store.get(KEY)||'[]')}catch(e){return[]}};
+const loadAll=()=>{try{return JSON.parse(store.get(KEY)||'[]').map(norm)}catch(e){return[]}};
 const saveAll=a=>{const j=JSON.stringify(a);idb.set(KEY,j).catch(()=>{});return store.set(KEY,j);};
 async function initStore(){
  try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
  try{
   const I=JSON.parse(await idb.get(KEY)||'[]'),L=loadAll(),m=new Map();
-  [...I,...L].forEach(q=>{const o=m.get(q.no);if(!o||(q.saved||0)>(o.saved||0))m.set(q.no,q)});
+  [...I.map(norm),...L].forEach(q=>{const o=m.get(q.id);if(!o||(q.saved||0)>(o.saved||0))m.set(q.id,q)});
   const a=[...m.values()];
   if(a.length!==L.length||a.length!==I.length)saveAll(a);
  }catch(e){}
@@ -218,7 +219,28 @@ async function storageInfo(){
  const t=+store.get('lk_bk')||0,d=Math.floor((Date.now()-t)/864e5);
  $('bkinfo').innerHTML=(p?'🔒 Storage protected':'⚠ Stored in this browser only')+' · '+(t?'Last backup '+(d?d+' day(s) ago':'today'):'<b style="color:#d32f2f">No backup yet</b>');
 }
-let curNo=null;
+let curNo=null,curId=null;
+const uid=()=>(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(16).slice(2));
+const norm=q=>{if(!q.id)q.id='L'+q.no;return q;};
+const TERMS={quotation:`1. Prices are subject to change without prior notice.
+2. 50% advance with order, balance before delivery.
+3. Tiles/granite: please order 8–10% extra for wastage; shade/batch variation is natural.
+4. Breakage during unloading at site is customer's responsibility.
+5. Timber and door prices are subject to market rates on the date of order.`,sales:`1. Goods once sold will not be exchanged or taken back.
+2. Please check the goods at the time of delivery.
+3. Breakage during unloading at site is customer's responsibility.
+4. Tiles/granite: shade/batch variation is natural.`};
+const typ=()=>$('dtype').value==='sales'?'sales':'quotation';
+const TW=t=>t==='sales'?'Sales invoice':'Quotation';
+const mkNo=(t,n)=>(t==='sales'?'LTH-S-':'LTH-')+new Date().getFullYear()+'-'+String(n).padStart(4,'0');
+let lastType='quotation';
+function applyType(){
+ const t=typ();$('qtag').textContent=t==='sales'?'SALES INVOICE':'QUOTATION';$('hq').textContent=TW(t);
+ $('lno').textContent=(t==='sales'?'Invoice':'Quotation')+' No.';document.title='Laksshmi Tiles and Hardwares – '+TW(t);
+ lastType=t;
+}
+const numOf=n=>parseInt(String(n).split('-').pop())||0;
+const fmtNo=(prev,n)=>(String(prev).replace(/\d+$/,'')||'LTH-'+new Date().getFullYear()+'-')+String(n).padStart(4,'0');
 const cfg=()=>{try{return JSON.parse(store.get('lk_cloud')||'null')}catch(e){return null}};
 function setCl(t,bad){const e=$('cloudinfo');if(e){e.textContent=t;e.style.color=bad?'#d32f2f':'var(--mute)';}}
 async function cloudCall(body){const c=cfg();const r=await fetch(c.url,{method:'POST',body:JSON.stringify({...body,key:c.key})});const j=await r.json();if(j.error)throw new Error(j.error);return j;}
@@ -227,41 +249,48 @@ async function syncAll(){
  const c=cfg();if(!c)return;setCl('☁ Syncing…');
  try{
   const r=await fetch(c.url+'?key='+encodeURIComponent(c.key)),j=await r.json();if(j.error)throw new Error(j.error);
-  const srv=j.quotations||[],loc=loadAll(),m=new Map(),sm=new Map(srv.map(q=>[q.no,q]));
-  [...srv,...loc].forEach(q=>{const o=m.get(q.no);if(!o||(q.saved||0)>(o.saved||0))m.set(q.no,q)});
-  const all=[...m.values()];saveAll(all);renderList();
-  for(const q of all){const s=sm.get(q.no);if(!s||(q.saved||0)>(s.saved||0))await cloudCall({action:'save',quote:q});}
+  const srv=(j.quotations||[]).map(norm),loc=loadAll(),m=new Map(),sm=new Map(srv.map(q=>[q.id,q]));
+  [...srv,...loc].forEach(q=>{const o=m.get(q.id);if(!o||(q.saved||0)>(o.saved||0))m.set(q.id,q)});
+  const all=[...m.values()];
+  all.sort((x,y)=>(sm.has(y.id)?1:0)-(sm.has(x.id)?1:0)||(x.saved||0)-(y.saved||0));
+  let mx=Math.max(0,...all.map(q=>numOf(q.no)));const used=new Set();
+  all.forEach(q=>{if(used.has(q.no)){mx++;q.no=fmtNo(q.no,mx);q.saved=Date.now();if(q.id===curId){curNo=q.no;$('qno').value=q.no;}}used.add(q.no);});
+  saveAll(all);
+  if(curId&&!all.some(q=>q.id===curId)){$('qno').value=fmtNo($('qno').value,nextNo());curNo=$('qno').value;}
+  renderList();
+  for(const q of all){const s=sm.get(q.id);if(!s||s.no!==q.no||(q.saved||0)>(s.saved||0))await cloudCall({action:'save',quote:q});}
   setCl('☁ Synced '+all.length+' quotation(s) with Google Sheet');
  }catch(e){setCl('☁ Sync failed: '+(e.message==='denied'?'wrong password':'check the URL and internet'),true);}
 }
-function nextNo(){const n=loadAll().map(q=>parseInt(String(q.no).split('-').pop())).filter(x=>x>0);return (n.length?Math.max(...n):0)+1;}
+function nextNo(t){t=t||typ();const n=loadAll().filter(q=>(q.type||'quotation')===t).map(q=>numOf(q.no));return (n.length?Math.max(...n):0)+1;}
 function collect(){
- const items=[...document.querySelectorAll('#rows tr')].map(tr=>({cat:tr.querySelector('.cat').value,desc:tr.querySelector('.desc').value,unit:tr.querySelector('.unit').value,qty:tr.querySelector('.qty').value,rate:tr.querySelector('.rate').value,dr:tr.querySelector('.dr').value,amt:tr.querySelector('.amt').textContent}));
- return {rateOn:$('rateOn').checked,no:$('qno').value,date:$('qdate').value,cname:$('cname').value,cphone:$('cphone').value,caddr:$('caddr').value,gstOn:$('gstOn').checked,gst:$('gst').value,trans:$('trans').value,terms:$('terms').value,sub:$('sub').textContent,gstAmt:$('gstAmt').textContent,total:$('grand').textContent,items,saved:Date.now()};
+ const items=[...document.querySelectorAll('#rows tr')].map(tr=>({cat:tr.querySelector('.cat').value,desc:tr.querySelector('.desc').value,unit:tr.querySelector('.unit').value,qty:tr.querySelector('.qty').value,rate:tr.querySelector('.rate').value,dp:tr.querySelector('.dp').value,dr:tr.querySelector('.dr').value,amt:tr.querySelector('.amt').textContent}));
+ if(!curId)curId=uid();
+ return {id:curId,type:typ(),rateOn:$('rateOn').checked,no:$('qno').value,date:$('qdate').value,cname:$('cname').value,cphone:$('cphone').value,caddr:$('caddr').value,gstOn:$('gstOn').checked,gst:$('gst').value,trans:$('trans').value,terms:$('terms').value,sub:$('sub').textContent,gstAmt:$('gstAmt').textContent,total:$('grand').textContent,items,saved:Date.now()};
 }
 function setSv(t,bad){const s=$('sv');s.textContent=t;s.style.color=bad?'#d32f2f':'var(--mute)';}
 function saveQuote(silent){
  if(!$('qno').value.trim())$('qno').value=curNo||'';
  const q=collect();
  if(!q.items.some(i=>i.amt!=='0.00')){if(!silent)alert('Add at least one item with a rate first.');return false;}
- const a=loadAll(),i=a.findIndex(x=>x.no===curNo),d=a.findIndex(x=>x.no===q.no);
- if(d>=0&&d!==i){setSv('Number '+q.no+' is already used by another quotation',true);if(!silent)alert('Quotation number '+q.no+' is already used. Please change it.');return false;}
+ const a=loadAll(),i=a.findIndex(x=>x.id===q.id);
+ if(a.some(x=>x.no===q.no&&x.id!==q.id)){q.no=fmtNo(q.no,nextNo(q.type));$('qno').value=q.no;if(!silent)alert('That number belonged to another quotation, so this one is now '+q.no+'. Nothing was overwritten.');}
  if(i>=0)a[i]=q;else a.push(q);
  const ok=saveAll(a);curNo=q.no;renderList();pushQuote(q);
  if(!ok){setSv('Could not save in this browser. Use Backup file.',true);if(!silent)alert('This browser is blocking storage, so quotations will be lost when the page closes. Please use the Backup file button.');return false;}
  setSv('✓ Saved '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
- if(!silent){const b=$('save');b.textContent='Saved ✓';setTimeout(()=>b.textContent='💾 Save quotation',1500);}
+ if(!silent){const b=$('save');b.textContent='Saved ✓';setTimeout(()=>b.textContent='💾 Save',1500);}
  return true;
 }
 function renderList(){
  const a=loadAll().sort((x,y)=>y.saved-x.saved),s=$('srch').value.toLowerCase();
- const f=a.filter(q=>(q.no+' '+q.cname+' '+q.cphone).toLowerCase().includes(s));
+ const lf=$('lf').value,f=a.filter(q=>(!lf||(q.type||'quotation')===lf)&&(q.no+' '+q.cname+' '+q.cphone).toLowerCase().includes(s));
  $('cnt').textContent='('+a.length+')';storageInfo();
- $('list').innerHTML=f.length?f.map(q=>`<div class="qi"><div><b>${q.no}</b> · ${(q.cname||'No name').replace(/</g,'&lt;')}<br><small>${(q.date||'').split('-').reverse().join('-')} · ${q.total}</small></div><div><button class="btn alt" data-o="${q.no}">Open</button> <button class="x" data-d="${q.no}" title="Delete">🗑</button></div></div>`).join(''):'<p style="color:var(--mute)">No saved quotations yet.</p>';
+ $('list').innerHTML=f.length?f.map(q=>`<div class="qi"><div>${q.type==='sales'?'🧾':'📄'} <b>${q.no}</b> · ${(q.cname||'No name').replace(/</g,'&lt;')}<br><small>${(q.date||'').split('-').reverse().join('-')} · ${q.total}</small></div><div><button class="btn alt" data-o="${q.id}">Open</button> <button class="x" data-d="${q.id}" title="Delete">🗑</button></div></div>`).join(''):'<p style="color:var(--mute)">Nothing saved yet.</p>';
 }
 function openQuote(no){
- const q=loadAll().find(x=>x.no===no);if(!q)return;
- $('qno').value=q.no;curNo=q.no;$('qdate').value=q.date;$('cname').value=q.cname;$('cphone').value=q.cphone;$('caddr').value=q.caddr;
+ const q=loadAll().find(x=>x.id===no);if(!q)return;
+ $('dtype').value=q.type||'quotation';applyType();$('qno').value=q.no;curNo=q.no;curId=q.id;$('qdate').value=q.date;$('cname').value=q.cname;$('cphone').value=q.cphone;$('caddr').value=q.caddr;
  $('rateOn').checked=q.rateOn!==false;$('gstOn').checked=q.gstOn;$('gst').value=q.gst;$('trans').value=q.trans;$('terms').value=q.terms;
  $('rows').innerHTML='';q.items.forEach(i=>addRow(i));if(!q.items.length)addRow();calc();window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -269,10 +298,27 @@ function dl(name,text,type){const u=URL.createObjectURL(new Blob([text],{type}))
 $('list').addEventListener('click',e=>{
  const o=e.target.dataset.o,d=e.target.dataset.d;
  if(o)openQuote(o);
- if(d&&confirm('Delete quotation '+d+'?')){saveAll(loadAll().filter(x=>x.no!==d));renderList();if(cfg())cloudCall({action:'delete',no:d}).catch(()=>{});}
+ if(d){const dq=loadAll().find(x=>x.id===d);if(dq&&confirm('Delete quotation '+dq.no+'?')){saveAll(loadAll().filter(x=>x.id!==d));renderList();if(cfg())cloudCall({action:'delete',no:dq.no}).catch(()=>{});}}
 });
-$('srch').addEventListener('input',renderList);
-window.addEventListener('beforeprint',()=>document.querySelectorAll('#rows tr').forEach(tr=>{const r=tr.querySelector('.rate');r.dataset.o=r.value;if(r.value!=='')r.value=Math.max((+r.value||0)-(+tr.querySelector('.dr').value||0),0);}));
+$('qno').addEventListener('change',()=>{
+ const v=$('qno').value.trim(),old=curNo;
+ if(!v){$('qno').value=old;return;}
+ if(v===old)return;
+ if(loadAll().some(x=>x.no===v&&x.id!==curId)){alert('Number '+v+' is already used by another one. Please choose a different number.');$('qno').value=old;return;}
+ const saved=loadAll().some(x=>x.id===curId);
+ if(saved&&cfg())cloudCall({action:'delete',no:old}).catch(()=>{});
+ $('qno').value=v;curNo=v;if(saved)saveQuote(true);
+});
+$('dtype').addEventListener('change',()=>{
+ const t=typ(),old=lastType,saved=loadAll().some(x=>x.id===curId),oldNo=$('qno').value;
+ if(old===t)return;
+ if(saved&&cfg())cloudCall({action:'delete',no:oldNo}).catch(()=>{});
+ $('qno').value=mkNo(t,nextNo(t));curNo=$('qno').value;
+ if($('terms').value.trim()===TERMS[old].trim())$('terms').value=TERMS[t];
+ applyType();if(saved)saveQuote(true);
+});
+$('srch').addEventListener('input',renderList);$('lf').addEventListener('change',renderList);
+window.addEventListener('beforeprint',()=>document.querySelectorAll('#rows tr').forEach(tr=>{const r=tr.querySelector('.rate');r.dataset.o=r.value;if(r.value!=='')r.value=+netRate(tr).toFixed(2);}));
 window.addEventListener('afterprint',()=>document.querySelectorAll('#rows .rate').forEach(r=>{if(r.dataset.o!==undefined)r.value=r.dataset.o;}));
 async function printQuote(){
  saveQuote(true);
@@ -296,8 +342,8 @@ $('save').onclick=()=>saveQuote(false);
 $('csv').onclick=()=>{
  const a=loadAll().sort((x,y)=>x.saved-y.saved);if(!a.length){alert('No saved quotations yet.');return;}
  const c=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
- const rows=[['Quotation No','Date','Customer','Phone','Address','Sl','Category','Description','Unit','Qty','Rate','Discount/unit','Amount','Sub-total','Transport','GST %','GST Amount','Grand Total']];
- a.forEach(q=>{(q.items.length?q.items:[{}]).forEach((i,k)=>(q.rateOn===false)?rows.push([q.no,q.date,q.cname,q.cphone,q.caddr,k+1,i.cat,i.desc,i.unit,i.qty,'','',i.amt,k?'':q.sub,k?'':q.trans,k?'':(q.gstOn?q.gst:'No GST'),k?'':(q.gstOn?q.gstAmt:''),k?'':q.total]):rows.push([q.no,q.date,q.cname,q.cphone,q.caddr,k+1,i.cat,i.desc,i.unit,i.qty,i.rate,i.dr,i.amt,k?'':q.sub,k?'':q.trans,k?'':(q.gstOn?q.gst:'No GST'),k?'':(q.gstOn?q.gstAmt:''),k?'':q.total]))});
+ const rows=[['Type','Number','Date','Customer','Phone','Address','Sl','Category','Description','Unit','Qty','Rate','Discount (% or ₹/unit)','Amount','Sub-total','Transport','GST %','GST Amount','Grand Total']];
+ a.forEach(q=>{const T=TW(q.type||'quotation');(q.items.length?q.items:[{}]).forEach((i,k)=>(q.rateOn===false)?rows.push([T,q.no,q.cname,q.cphone,q.caddr,k+1,i.cat,i.desc,i.unit,i.qty,'','',i.amt,k?'':q.sub,k?'':q.trans,k?'':(q.gstOn?q.gst:'No GST'),k?'':(q.gstOn?q.gstAmt:''),k?'':q.total]):rows.push([T,q.no,q.cname,q.cphone,q.caddr,k+1,i.cat,i.desc,i.unit,i.qty,i.rate,(i.dp?i.dp+'%':i.dr),i.amt,k?'':q.sub,k?'':q.trans,k?'':(q.gstOn?q.gst:'No GST'),k?'':(q.gstOn?q.gstAmt:''),k?'':q.total]))});
  dl('Laksshmi-Quotations.csv','\ufeff'+rows.map(r=>r.map(c).join(',')).join('\r\n'),'text/csv;charset=utf-8');
 };
 $('bk').onclick=()=>{store.set('lk_bk',String(Date.now()));storageInfo();dl('Laksshmi-Quotations-Backup.json',JSON.stringify(loadAll()),'application/json');};
@@ -314,7 +360,7 @@ function newQuote(){
  ['cname','cphone','caddr'].forEach(i=>$(i).value='');
  $('qdate').value=new Date().toISOString().slice(0,10);
  let n=nextNo();
- $('qno').value='LTH-'+new Date().getFullYear()+'-'+String(n).padStart(4,'0');curNo=$('qno').value;
+ $('qno').value=mkNo(typ(),n);curNo=$('qno').value;curId=uid();
  addRow();addRow();
 }
 $('reset').onclick=()=>{if(confirm('Start a new quotation? The current one will be saved first.')){saveQuote(true);newQuote();}};
@@ -341,10 +387,10 @@ function snapshot(){
  <div class="s">119C, Meenkarai Road, Zamin Uthukuli, Pollachi - 642004</div>
  <div class="s">📞 9843620152 | 9843620191 &nbsp; ✉ lakshmibathhome@gmail.com</div>
  <div class="s"><b>GSTIN: 33AAKFA3444L1ZG</b></div></div></div>
- <div class="m"><div><b>QUOTATION</b><br>No: ${$('qno').value}<br>Date: ${$('qdate').value.split('-').reverse().join('-')}</div>
+ <div class="m"><div><b>${typ()==='sales'?'SALES INVOICE':'QUOTATION'}</b><br>No: ${$('qno').value}<br>Date: ${$('qdate').value.split('-').reverse().join('-')}</div>
  <div class="r"><b>To:</b> ${$('cname').value||'-'}<br>${$('cphone').value}<br>${$('caddr').value}</div></div>
  <table><tr><th>#</th><th>Description</th><th class="r">Qty</th>${ro?'<th class="r">Rate</th>':''}<th class="r">Amount</th></tr>
- ${rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.querySelector('.desc').value.replace(/</g,'&lt;')}</td><td class="r">${r.querySelector('.qty').value} ${r.querySelector('.unit').value}</td>${ro?`<td class="r">${fmt(Math.max((+r.querySelector('.rate').value||0)-(+r.querySelector('.dr').value||0),0))}</td>`:''}<td class="r"><b>${r.querySelector('.amt').textContent}</b></td></tr>`).join('')}</table>
+ ${rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.querySelector('.desc').value.replace(/</g,'&lt;')}</td><td class="r">${r.querySelector('.qty').value} ${r.querySelector('.unit').value}</td>${ro?`<td class="r">${fmt(netRate(r))}</td>`:''}<td class="r"><b>${r.querySelector('.amt').textContent}</b></td></tr>`).join('')}</table>
  <div class="t"><div><span>Sub-total</span><span>${rs(+$('sub').textContent.replace(/,/g,''))}</span></div>
  ${tr?`<div><span>Transport / Loading</span><span>${rs(tr)}</span></div>`:''}
  ${on?`<div><span>GST ${$('gst').value}%</span><span>${rs(+$('gstAmt').textContent.replace(/,/g,''))}</span></div>`:''}
@@ -364,9 +410,9 @@ async function shareImage(kind){
  saveQuote(true);
  const btn=$(kind==='wa'?'wa':'mail'),old=btn.textContent;btn.textContent='Preparing…';btn.disabled=true;
  try{
-  const blob=await makeImage(),name='Quotation-'+$('qno').value+'.png',file=new File([blob],name,{type:'image/png'});
+  const blob=await makeImage(),name=TW(typ()).replace(' ','-')+'-'+$('qno').value+'.png',file=new File([blob],name,{type:'image/png'});
   if(navigator.canShare&&navigator.canShare({files:[file]})){
-   try{await navigator.share({files:[file],title:'Quotation '+$('qno').value});return;}catch(e){if(e.name==='AbortError')return;}
+   try{await navigator.share({files:[file],title:TW(typ())+' '+$('qno').value});return;}catch(e){if(e.name==='AbortError')return;}
   }
   showPreview(blob,name,kind);
  }catch(e){alert('Could not create the image. Please try again.');}
@@ -375,9 +421,9 @@ async function shareImage(kind){
 function showPreview(blob,name,kind){
  const url=URL.createObjectURL(blob),o=document.createElement('div');
  o.className='no-print';o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9;overflow:auto;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px';
- o.innerHTML=`<div style="color:#fff;text-align:center;max-width:520px">${kind==='img'?'Quotation image is ready. Tap Download image, or press and hold the picture to save it.':'Quotation image is ready. Save it (or copy it), then attach it in '+(kind==='wa'?'WhatsApp':'Gmail')+'.'}</div>
+ o.innerHTML=`<div style="color:#fff;text-align:center;max-width:520px">${kind==='img'?TW(typ())+' image is ready. Tap Download image, or press and hold the picture to save it.':TW(typ())+' image is ready. Save it (or copy it), then attach it in '+(kind==='wa'?'WhatsApp':'Gmail')+'.'}</div>
  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><a class="btn" download="${name}" href="${url}" style="text-decoration:none">⬇ Download image</a>
- <button class="btn alt" id="cp">Copy image</button>${kind==='img'?'':`<a class="btn alt" target="_blank" style="text-decoration:none" href="${kind==='wa'?'https://web.whatsapp.com/':'https://mail.google.com/mail/?view=cm&fs=1&su='+encodeURIComponent('Quotation '+$('qno').value+' - Laksshmi Tiles & Hardwares')}">Open ${kind==='wa'?'WhatsApp':'Gmail'}</a>`}
+ <button class="btn alt" id="cp">Copy image</button>${kind==='img'?'':`<a class="btn alt" target="_blank" style="text-decoration:none" href="${kind==='wa'?'https://web.whatsapp.com/':'https://mail.google.com/mail/?view=cm&fs=1&su='+encodeURIComponent(TW(typ())+' '+$('qno').value+' - Laksshmi Tiles & Hardwares')}">Open ${kind==='wa'?'WhatsApp':'Gmail'}</a>`}
  <button class="btn alt" id="cl">Close</button></div>
  <img src="${url}" style="max-width:min(100%,820px);background:#fff;border-radius:8px">`;
  document.body.appendChild(o);
@@ -388,7 +434,7 @@ async function downloadImage(){
  saveQuote(true);
  const b=$('dimg'),old=b.textContent;b.textContent='Preparing…';b.disabled=true;
  try{
-  const blob=await makeImage(),name='Quotation-'+$('qno').value+'.png';
+  const blob=await makeImage(),name=TW(typ()).replace(' ','-')+'-'+$('qno').value+'.png';
   if(window.self!==window.top)showPreview(blob,name,'img');
   else{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();}
  }catch(e){alert('Could not create the image. Please try again.');}
